@@ -9,11 +9,6 @@ const nextConfig = {
   },
   images: {
     domains: ['monkeys.support', 'dev.themonkeys.site'],
-  },
-  experimental: {
-    missingSuspenseWithCSRBailout: false,
-  },
-  images: {
     qualities: [80, 100],
     remotePatterns: [
       {
@@ -24,7 +19,15 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'dev.monkeys.support',
       },
+      {
+        protocol: 'http',
+        hostname: '127.0.0.1',
+        port: '8081',
+      },
     ],
+  },
+  experimental: {
+    missingSuspenseWithCSRBailout: false,
   },
 };
 

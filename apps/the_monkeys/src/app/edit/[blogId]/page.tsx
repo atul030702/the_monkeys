@@ -333,10 +333,11 @@ const EditPage = ({ params }: { params: { blogId: string } }) => {
 
   // Initialize editor data
   useEffect(() => {
-    if (blog) {
+    if (blog && !data) {
       setData(blog.blog || { time: Date.now(), blocks: [], version: '' });
       setBlogTopics(blog.tags || []);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blog]);
 
   // Fetch draft blog data on mount
@@ -364,9 +365,8 @@ const EditPage = ({ params }: { params: { blogId: string } }) => {
               )}
             >
               <div
-                className={`inline-block size-2 rounded-full ${
-                  isConnected ? 'bg-alert-green' : 'bg-alert-red'
-                }`}
+                className={`inline-block size-2 rounded-full ${isConnected ? 'bg-alert-green' : 'bg-alert-red'
+                  }`}
               />
 
               <p className='text-xs'>{isConnected ? 'Online' : 'Offline'}</p>
