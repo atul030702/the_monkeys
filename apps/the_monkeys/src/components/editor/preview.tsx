@@ -11,7 +11,6 @@ export type EditorProps = {
 const Editor: FC<EditorProps> = ({ data }) => {
   const editorInstance = useRef<EditorJS | null>(null);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!editorInstance.current) {
       editorInstance.current = new EditorJS({
@@ -26,6 +25,7 @@ const Editor: FC<EditorProps> = ({ data }) => {
         editorInstance.current = null;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
