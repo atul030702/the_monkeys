@@ -10,12 +10,17 @@ export default class CustomList implements BlockTool {
   private wrapper!: HTMLElement;
   private maxLevel: number = 3;
   private backspaceTimeout: number | null = null;
+  private lastFocusedItem: HTMLElement | null = null;
 
   private static readonly ICONS = {
     UNORDERED:
       '<svg width="18" height="18" viewBox="0 0 24 24"><path d="M4 6h2v2H4zM8 6h12v2H8zM4 11h2v2H4zM8 11h12v2H8zM4 16h2v2H4zM8 16h12v2H8z"/></svg>',
     ORDERED:
       '<svg width="18" height="18" viewBox="0 0 24 24"><path d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z"/></svg>',
+    INDENT:
+      '<svg width="24" height="24" viewBox="0 0 24 24"><path d="M3 21h18v-2H3v2zm6-4h12v-2H9v2zm-6-4h18v-2H3v2zm6-4h12V7H9v2zM3 3v2h18V3H3z"/></svg>',
+    OUTDENT:
+      '<svg width="24" height="24" viewBox="0 0 24 24"><path d="M3 21h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18V7H3v2zm0-6v2h18V3H3z"/></svg>',
   };
 
   constructor({ data, api, readOnly }: ConstructorArgs) {
@@ -117,6 +122,28 @@ export default class CustomList implements BlockTool {
         isActive: this.data.style === 'ordered',
         onActivate: () => this.toggleTune('ordered'),
       },
+      {
+        name: 'outdent',
+        label: 'Outdent',
+        icon: CustomList.ICONS.OUTDENT,
+        closeOnActivate: false, // Keep open for repeated actions
+        onActivate: () => {
+          if (this.lastFocusedItem) {
+            this.outdentItem(this.lastFocusedItem);
+          }
+        },
+      },
+      {
+        name: 'indent',
+        label: 'Indent',
+        icon: CustomList.ICONS.INDENT,
+        closeOnActivate: false, // Keep open for repeated actions
+        onActivate: () => {
+          if (this.lastFocusedItem) {
+            this.indentItem(this.lastFocusedItem);
+          }
+        },
+      },
     ];
   }
 
@@ -150,10 +177,19 @@ export default class CustomList implements BlockTool {
     }
   };
 
+  private onFocusIn = (event: FocusEvent) => {
+    const target = event.target as HTMLElement;
+    const listItem = target.closest('.cdx-list__item') as HTMLElement;
+    if (listItem) {
+      this.lastFocusedItem = listItem;
+    }
+  };
+
   private removeEvents() {
     if (this.wrapper) {
       this.wrapper.removeEventListener('keydown', this.onKeyDown);
       this.wrapper.removeEventListener('click', this.onClick);
+      this.wrapper.removeEventListener('focusin', this.onFocusIn);
     }
     if (this.backspaceTimeout) {
       clearTimeout(this.backspaceTimeout);
@@ -165,6 +201,7 @@ export default class CustomList implements BlockTool {
     if (this.wrapper && !this.readOnly) {
       this.wrapper.addEventListener('keydown', this.onKeyDown);
       this.wrapper.addEventListener('click', this.onClick);
+      this.wrapper.addEventListener('focusin', this.onFocusIn);
     }
   }
 
@@ -417,12 +454,16 @@ export default class CustomList implements BlockTool {
       return;
     }
 
-    const currentLevel = this.getLevel(currentItem);
+    this.indentItem(currentItem);
+  }
+
+  private indentItem(item: HTMLElement) {
+    const currentLevel = this.getLevel(item);
     if (currentLevel >= this.maxLevel) {
       return;
     }
 
-    const previousItem = currentItem.previousElementSibling as HTMLElement;
+    const previousItem = item.previousElementSibling as HTMLElement;
     if (previousItem) {
       let sublist = previousItem.querySelector('.cdx-list__sublist');
       if (!sublist) {
@@ -432,8 +473,8 @@ export default class CustomList implements BlockTool {
         sublist.className = 'cdx-list__sublist';
         previousItem.appendChild(sublist);
       }
-      sublist.appendChild(currentItem);
-      this.focusItem(currentItem);
+      sublist.appendChild(item);
+      this.focusItem(item);
     }
   }
 
