@@ -1,6 +1,13 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
@@ -10,17 +17,15 @@ import { PublishBlogDialog } from '@/components/blog/actions/PublishBlogDialog';
 import { PublishBlogDrawer } from '@/components/blog/actions/PublishBlogDrawer';
 import { Loader } from '@/components/loader';
 import { EditorBlockSkeleton } from '@/components/skeletons/blogSkeleton';
-import { getEditorConfig } from '@/config/editor/editorjs.config';
 import { WSS_URL_V2 } from '@/constants/api';
 import useAuth from '@/hooks/auth/useAuth';
 import useGetDraftBlogDetail, {
   DRAFT_BLOG_DETAIL_QUERY_KEY,
 } from '@/hooks/blog/useGetDraftBlogDetail';
 import axiosInstance from '@/services/api/axiosInstance';
-import { OutputData } from '@editorjs/editorjs';
+import { EditorConfig, OutputData } from '@editorjs/editorjs';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@the-monkeys/ui/hooks/use-toast';
-import { format } from 'path';
 import { twMerge } from 'tailwind-merge';
 
 const Editor = dynamic(() => import('@/components/editor'), {
@@ -119,6 +124,8 @@ const EditPage = ({ params }: { params: { blogId: string } }) => {
     },
     []
   );
+
+  const [editorConfig, setEditorConfig] = useState<EditorConfig | null>(null);
 
   // WebSocket management
   useEffect(() => {
@@ -237,6 +244,21 @@ const EditPage = ({ params }: { params: { blogId: string } }) => {
     }
   }, [data, blogTopics, isConnected, accountId, formatData]);
 
+  useEffect(() => {
+    const loadEditorConfig = async () => {
+      try {
+        const { getEditorConfig } = await import(
+          '@/config/editor/editorjs.config'
+        );
+        setEditorConfig(getEditorConfig(blogId));
+      } catch (error) {
+        console.error('Failed to load editor config:', error);
+      }
+    };
+
+    loadEditorConfig();
+  }, [blogId]);
+
   // Handle blog publishing
   const handlePublishStep = useCallback(async () => {
     if (!data || data.blocks.length <= 2) {
@@ -311,10 +333,11 @@ const EditPage = ({ params }: { params: { blogId: string } }) => {
 
   // Initialize editor data
   useEffect(() => {
-    if (blog) {
+    if (blog && !data) {
       setData(blog.blog || { time: Date.now(), blocks: [], version: '' });
       setBlogTopics(blog.tags || []);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blog]);
 
   // Fetch draft blog data on mount
@@ -377,12 +400,8 @@ const EditPage = ({ params }: { params: { blogId: string } }) => {
                 </div>
               }
             >
-              {data && (
-                <Editor
-                  data={data}
-                  onChange={setData}
-                  config={getEditorConfig(blogId)}
-                />
+              {data && editorConfig && (
+                <Editor data={data} onChange={setData} config={editorConfig} />
               )}
             </Suspense>
           </div>
