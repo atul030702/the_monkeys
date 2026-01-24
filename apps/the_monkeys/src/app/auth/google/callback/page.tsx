@@ -52,6 +52,7 @@ export default function GoogleCallback() {
     const code = params.get('code') || '';
 
     mutation.mutate(code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

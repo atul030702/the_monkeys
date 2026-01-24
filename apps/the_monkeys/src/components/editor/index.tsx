@@ -10,9 +10,14 @@ export type EditorProps = {
   config: EditorConfig;
 };
 
-const Editor: FC<EditorProps> = ({ data, onChange, config }) => {
+const Editor: FC<EditorProps> = React.memo(function Editor({
+  data,
+  onChange,
+  config,
+}) {
   const editorInstance = useRef<EditorJS | null>(null);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!editorInstance.current) {
       editorInstance.current = new EditorJS({
@@ -39,6 +44,6 @@ const Editor: FC<EditorProps> = ({ data, onChange, config }) => {
   return (
     <div className='w-full px-4 space-y-6' id='editorjs_editor-container'></div>
   );
-};
+});
 
 export default Editor;
