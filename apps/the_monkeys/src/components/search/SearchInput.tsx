@@ -50,9 +50,12 @@ export const SearchInput = ({ className }: { className?: string }) => {
   };
 
   useEffect(() => {
+    // Search-v2 (Phase 4): tighter debounce since the server is faster
+    // and the gateway rate limit is 30 req/s. 250ms gives a 5/word
+    // typist roughly 1 request per finished word.
     const handler = setTimeout(() => {
       setDebouncedQuery(searchQuery.trim());
-    }, 300);
+    }, 250);
 
     return () => clearTimeout(handler);
   }, [searchQuery]);
@@ -60,19 +63,20 @@ export const SearchInput = ({ className }: { className?: string }) => {
   return (
     <div className={twMerge(className)}>
       <form onSubmit={handleEnterKeySubmit}>
-        <div className='mt-[2px] relative px-3 py-[6px] flex items-center gap-[6px] bg-foreground-light/40 dark:bg-foreground-dark/40 rounded-full'>
-          <div className='p-1 flex justify-center'>
-            <Icon
-              name='RiSearch'
-              size={18}
-              className={twMerge(focused ? 'opacity-100' : 'opacity-60')}
-            />
-          </div>
+        <div className='relative px-4 py-2 flex items-center gap-2.5 bg-background-light dark:bg-background-dark transition-colors rounded-full border border-gray-200 dark:border-gray-400 focus-within:border-gray-900 focus-within:bg-white focus-within:shadow-sm max-w-[240px] '>
+          <Icon
+            name='RiSearch'
+            size={18}
+            className={twMerge(
+              'text-gray-400  transition-colors',
+              focused && 'text-gray-900'
+            )}
+          />
 
           <input
             value={searchQuery}
-            placeholder='Search'
-            className='w-full text-sm bg-transparent focus:outline-none'
+            placeholder='Search stories...'
+            className='w-full text-[15px] bg-transparent  focus:outline-none text-gray-900 placeholder:text-gray-400 font-inter'
             onChange={handleInputChange}
             onFocus={() => setFocused(true)}
             onBlur={handleBlur}
@@ -122,13 +126,17 @@ export const SearchInput = ({ className }: { className?: string }) => {
                   )}
                 </div>
 
-                {/* <Link
-                  href={`/search?query=${debouncedQuery}`}
+                {/* See-all footer links to the full results page.
+                    Triggers on mousedown so the click registers before
+                    the input's blur handler closes the dropdown. */}
+                <Link
+                  href={`/search?query=${encodeURIComponent(debouncedQuery)}`}
                   className='self-center p-1 text-sm hover:underline opacity-90'
+                  onMouseDown={handleClose}
                   onClick={handleClose}
                 >
-                  see all results for &apos;{debouncedQuery}&apos;
-                </Link> */}
+                  See all results for &apos;{debouncedQuery}&apos;
+                </Link>
               </div>
             </div>
           )}

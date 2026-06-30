@@ -1,12 +1,14 @@
 import type { Metadata } from 'next';
-import { DM_Sans, Inter } from 'next/font/google';
+import { DM_Sans, Inter, Newsreader } from 'next/font/google';
 import Script from 'next/script';
 
+import { AppShell } from '@/components/layout/app-shell/AppShell';
 import Footer from '@/components/layout/footer';
-import Navbar from '@/components/layout/navbar';
+import DonationPopup from '@/components/popup/DonationPopup';
 import { LIVE_URL } from '@/constants/api';
 import { TooltipProvider } from '@the-monkeys/ui/atoms/tooltip';
 import { Toaster } from '@the-monkeys/ui/molecules/toaster';
+import { PublicEnvScript } from 'next-runtime-env';
 
 import './globals.css';
 import GrowthbookClientProvider from './growthbook-provider';
@@ -23,6 +25,12 @@ const inter = Inter({
 const dm_sans = DM_Sans({
   subsets: ['latin'],
   variable: '--font-dm_sans',
+  display: 'swap',
+});
+
+const newsreader = Newsreader({
+  subsets: ['latin'],
+  variable: '--font-newsreader',
   display: 'swap',
 });
 
@@ -141,17 +149,23 @@ const RootLayout = async ({
           type='application/ld+json'
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
         />
+        {/* Populates your environment at runtime rather than build time */}
+        <PublicEnvScript />
       </head>
       <body
-        className={`${dm_sans.variable} ${inter.variable} bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark`}
+        className={`${dm_sans.variable} ${inter.variable} ${newsreader.variable} bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark`}
       >
+        <DonationPopup />
         <Toaster />
         <GrowthbookClientProvider>
           <QueryClientMount>
             <ThemeProviders>
               <TooltipProvider>
-                <Navbar />
-                <main>{children}</main>
+                {/* <Separator /> */}
+                <main>
+                  <AppShell>{children}</AppShell>
+                </main>
+                {/* <Separator /> */}
                 <Footer />
               </TooltipProvider>
             </ThemeProviders>

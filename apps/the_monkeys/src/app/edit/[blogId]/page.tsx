@@ -1,19 +1,11 @@
 'use client';
 
-import {
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { generateSlug } from '@/app/blog/utils/generateSlug';
-import { PublishBlogDialog } from '@/components/blog/actions/PublishBlogDialog';
 import { PublishBlogDrawer } from '@/components/blog/actions/PublishBlogDrawer';
 import { Loader } from '@/components/loader';
 import { EditorBlockSkeleton } from '@/components/skeletons/blogSkeleton';
@@ -23,7 +15,8 @@ import useGetDraftBlogDetail, {
   DRAFT_BLOG_DETAIL_QUERY_KEY,
 } from '@/hooks/blog/useGetDraftBlogDetail';
 import axiosInstance from '@/services/api/axiosInstance';
-import { EditorConfig, OutputData } from '@editorjs/editorjs';
+import axiosInstanceV2 from '@/services/api/axiosInstanceV2';
+import { OutputData } from '@editorjs/editorjs';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@the-monkeys/ui/hooks/use-toast';
 import { twMerge } from 'tailwind-merge';
@@ -37,12 +30,32 @@ const Editor = dynamic(() => import('@/components/editor'), {
   ),
 });
 
+const INITIAL_DATA: OutputData = {
+  time: Date.now(),
+  blocks: [
+    {
+      id: 'title',
+      type: 'header',
+      data: {
+        text: 'Untitled Post',
+        level: 1,
+      },
+    },
+  ],
+};
+
 const EditPage = ({ params }: { params: { blogId: string } }) => {
   const queryClient = useQueryClient();
   const blogId = params.blogId;
   const { data: session } = useAuth();
   const router = useRouter();
-  const { blog, isLoading } = useGetDraftBlogDetail(blogId);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isNew = searchParams.get('isNew') === 'true';
+
+  const { blog, isLoading, isError } = useGetDraftBlogDetail(blogId, {
+    enabled: !isNew,
+  });
 
   // Refs for latest values
   const dataRef = useRef<OutputData | null>(null);
@@ -51,13 +64,29 @@ const EditPage = ({ params }: { params: { blogId: string } }) => {
   const webSocketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [data, setData] = useState<OutputData | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [blogPublishLoading, setBlogPublishLoading] = useState(false);
   const [blogTopics, setBlogTopics] = useState<string[]>([]);
   const [token, setToken] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('Connecting...');
+
+  const [data, setData] = useState<OutputData | null>(
+    isNew ? INITIAL_DATA : null
+  );
+
+  useEffect(() => {
+    // route change should happen in a dedicated effect to avoid running between renders
+    if (!isNew) return;
+
+    // Clean up the URL so that subsequent refreshes perform a regular fetch
+    const newUrl = window.location.pathname;
+    window.history.replaceState(
+      { ...window.history.state, as: newUrl, url: newUrl },
+      '',
+      newUrl
+    );
+  }, [isNew]);
 
   const accountId = session?.account_id;
   const username = session?.username;
@@ -122,10 +151,8 @@ const EditPage = ({ params }: { params: { blogId: string } }) => {
         slug: blogSlug,
       };
     },
-    []
+    [blogId]
   );
-
-  const [editorConfig, setEditorConfig] = useState<EditorConfig | null>(null);
 
   // WebSocket management
   useEffect(() => {
@@ -149,7 +176,7 @@ const EditPage = ({ params }: { params: { blogId: string } }) => {
 
       ws.onopen = () => {
         if (!isMounted) return;
-        console.log('WebSocket connected 🟢');
+        console.log('WebSocket connected \uD83D\uDFE2');
         setIsConnected(true);
         setConnectionStatus('Connected');
         retryCount = 0;
@@ -166,14 +193,14 @@ const EditPage = ({ params }: { params: { blogId: string } }) => {
         }
       };
 
-      ws.onmessage = (event) => {
+      ws.onmessage = () => {
         setIsSaving(false);
         // Optional: Handle any incoming messages from server
       };
 
       ws.onclose = (event) => {
         if (!isMounted) return;
-        console.log('WebSocket closed 🔴', event.code, event.reason);
+        console.log('WebSocket closed \uD83D\uDD34', event.code, event.reason);
         setIsConnected(false);
         setIsSaving(false);
         setConnectionStatus('Disconnected');
@@ -193,7 +220,7 @@ const EditPage = ({ params }: { params: { blogId: string } }) => {
       };
 
       ws.onerror = (error) => {
-        console.error('WebSocket error ⭕', error);
+        console.error('WebSocket error \u2B55', error);
         ws.close();
       };
 
@@ -225,7 +252,7 @@ const EditPage = ({ params }: { params: { blogId: string } }) => {
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [token, blogId, formatData]);
+  }, [token, blogId, formatData, isConnected]);
 
   // Auto-save when data changes
   useEffect(() => {
@@ -243,21 +270,6 @@ const EditPage = ({ params }: { params: { blogId: string } }) => {
       setIsSaving(false);
     }
   }, [data, blogTopics, isConnected, accountId, formatData]);
-
-  useEffect(() => {
-    const loadEditorConfig = async () => {
-      try {
-        const { getEditorConfig } = await import(
-          '@/config/editor/editorjs.config'
-        );
-        setEditorConfig(getEditorConfig(blogId));
-      } catch (error) {
-        console.error('Failed to load editor config:', error);
-      }
-    };
-
-    loadEditorConfig();
-  }, [blogId]);
 
   // Handle blog publishing
   const handlePublishStep = useCallback(async () => {
@@ -333,12 +345,18 @@ const EditPage = ({ params }: { params: { blogId: string } }) => {
 
   // Initialize editor data
   useEffect(() => {
-    if (blog && !data) {
-      setData(blog.blog || { time: Date.now(), blocks: [], version: '' });
-      setBlogTopics(blog.tags || []);
+    if (!isLoading) {
+      if (blog && !data) {
+        setData(blog.blog || INITIAL_DATA);
+        setBlogTopics(blog.tags || []);
+      } else if ((isError || !blog) && !data) {
+        // Handle new draft or fetch error by providing blank slate
+        setData(INITIAL_DATA);
+        setBlogTopics([]);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blog]);
+  }, [blog, isLoading, isError]);
 
   // Fetch draft blog data on mount
   useEffect(() => {
@@ -346,6 +364,96 @@ const EditPage = ({ params }: { params: { blogId: string } }) => {
       queryKey: [DRAFT_BLOG_DETAIL_QUERY_KEY, blogId],
     });
   }, [blogId, queryClient]);
+
+  // Handle blog scheduling
+  const handleScheduleStep = useCallback(
+    async (scheduleTime: string, timezone: string) => {
+      if (!data || data.blocks.length <= 2) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Post must contain at least 3 content blocks.',
+        });
+        return;
+      }
+
+      if (
+        data.blocks[0].type !== 'header' &&
+        data?.blocks[0].data.level !== 1
+      ) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Post should start with title (Heading 1).',
+        });
+        return;
+      }
+
+      const titleBlockCount = data.blocks.filter(
+        (block) => block.type === 'title'
+      ).length;
+      if (titleBlockCount > 1) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description:
+            'Only one title block (Heading 1) is allowed in the post.',
+        });
+        return;
+      }
+
+      setBlogPublishLoading(true);
+
+      try {
+        const formatted = formatData(data, accountId, blogTopics);
+
+        // Attempt to save latest changes via WS before scheduling
+        if (webSocketRef.current?.readyState === WebSocket.OPEN) {
+          webSocketRef.current.send(JSON.stringify(formatted));
+        }
+
+        const payload = {
+          tags: formatted.tags,
+          slug: formatted.slug,
+          schedule_time: scheduleTime,
+          timezone: timezone,
+        };
+
+        await axiosInstanceV2.post(`/blog/${blogId}/schedule_blog`, payload);
+
+        toast({
+          variant: 'success',
+          title: 'Blog Scheduled Successfully',
+          description: 'Your post has been scheduled!',
+        });
+
+        // Invalidate cache and redirect
+        queryClient.invalidateQueries({
+          queryKey: [DRAFT_BLOG_DETAIL_QUERY_KEY, blogId],
+        });
+        router.push(`/library?source=scheduled`);
+      } catch (error) {
+        console.error('Schedule error:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Error Scheduling Blog',
+          description: 'There was an error while scheduling. Please try again.',
+        });
+      } finally {
+        setBlogPublishLoading(false);
+      }
+    },
+    [
+      data,
+      accountId,
+      blogId,
+      blogTopics,
+      formatData,
+      router,
+      username,
+      queryClient,
+    ]
+  );
 
   return (
     <>
@@ -380,15 +488,8 @@ const EditPage = ({ params }: { params: { blogId: string } }) => {
                 data={data}
                 isPublishing={blogPublishLoading}
                 handlePublish={handlePublishStep}
+                handleSchedule={handleScheduleStep}
               />
-
-              {/* <PublishBlogDialog
-                topics={blogTopics}
-                setTopics={setBlogTopics}
-                data={data}
-                isPublishing={blogPublishLoading}
-                handlePublish={handlePublishStep}
-              /> */}
             </div>
           </div>
 
@@ -400,8 +501,8 @@ const EditPage = ({ params }: { params: { blogId: string } }) => {
                 </div>
               }
             >
-              {data && editorConfig && (
-                <Editor data={data} onChange={setData} config={editorConfig} />
+              {data && (
+                <Editor data={data} onChange={setData} blogId={blogId} />
               )}
             </Suspense>
           </div>

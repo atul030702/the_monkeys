@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Suspense } from 'react';
 
 import {
   PaginationNextButton,
@@ -8,9 +8,12 @@ import { FeedBlogCard } from '@/components/cards/blog/FeedBlogCard';
 import { FeedBlogCardListSkeleton } from '@/components/skeletons/blogSkeleton';
 import { BOOKMARKS_PER_PAGE } from '@/constants/posts';
 import useGetBookmarkedBlogs from '@/hooks/blog/useGetBookmarkedBlogs';
+import { usePagination } from '@/hooks/user/usePagination';
+import { fromMetaBlog } from '@/utils/blogCardAdapters';
 
-export const Bookmarks = () => {
-  const [page, setPage] = useState<number>(0);
+const BookmarksInner = () => {
+  const { page, next, prev } = usePagination();
+
   const offset = page * BOOKMARKS_PER_PAGE;
 
   const { blogs, isLoading, isError } = useGetBookmarkedBlogs({
@@ -64,9 +67,10 @@ export const Bookmarks = () => {
             blogs?.blogs.map((blog) => {
               return (
                 <FeedBlogCard
-                  blog={blog}
+                  blog={fromMetaBlog(blog)}
                   key={blog?.blog_id}
-                  showBookmarkOption={true}
+                  showBookmark={true}
+                  variant='list'
                 />
               );
             })}
@@ -74,22 +78,24 @@ export const Bookmarks = () => {
           {showPagination && (
             <div className='flex justify-center gap-[10px] mt-4'>
               {hasPrevPage && (
-                <PaginationPrevButton
-                  onClick={() => setPage((prev) => Math.max(prev - 1, 0))}
-                  disable={!hasPrevPage}
-                />
+                <PaginationPrevButton onClick={prev} disable={!hasPrevPage} />
               )}
 
               {hasNextPage && (
-                <PaginationNextButton
-                  onClick={() => setPage((prev) => prev + 1)}
-                  disable={!hasNextPage}
-                />
+                <PaginationNextButton onClick={next} disable={!hasNextPage} />
               )}
             </div>
           )}
         </>
       )}
     </div>
+  );
+};
+
+export const Bookmarks = () => {
+  return (
+    <Suspense fallback={<FeedBlogCardListSkeleton />}>
+      <BookmarksInner />
+    </Suspense>
   );
 };

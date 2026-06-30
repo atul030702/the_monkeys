@@ -1,45 +1,88 @@
 'use client';
 
-import React, { FC, useEffect, useRef } from 'react';
+import React, { FC, useEffect, useMemo, useRef } from 'react';
 
-import EditorJS, { EditorConfig, OutputData } from '@editorjs/editorjs';
+import { getEditorConfig } from '@/config/editor/editorjs.config';
+import axiosInstanceV2 from '@/services/api/axiosInstanceV2';
+import EditorJS, { OutputData } from '@editorjs/editorjs';
 
 export type EditorProps = {
+  blogId: string;
   data: OutputData;
   onChange: (data: OutputData) => void;
-  config: EditorConfig;
 };
 
+// Extract all file URLs from EditorJS blocks that have data.file.url
+function extractFileUrls(blocks: OutputData['blocks']): Set<string> {
+  const urls = new Set<string>();
+  for (const block of blocks) {
+    const url = block?.data?.file?.url;
+    if (typeof url === 'string' && url.length > 0) {
+      urls.add(url);
+    }
+  }
+  return urls;
+}
+
+// Delete an orphaned file from v2 storage.
+function deleteOrphanedFile(url: string) {
+  const v2Prefix = '/api/v2';
+  const path = url.startsWith(v2Prefix) ? url.slice(v2Prefix.length) : url;
+
+  axiosInstanceV2.delete(path).catch((err) => {
+    console.warn('Failed to delete orphaned file:', path, err);
+  });
+}
+
 const Editor: FC<EditorProps> = React.memo(function Editor({
+  blogId,
   data,
   onChange,
-  config,
 }) {
   const editorInstance = useRef<EditorJS | null>(null);
+  const prevFileUrls = useRef<Set<string>>(extractFileUrls(data?.blocks || []));
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Pre-calculate the config based on the blogId
+  const editorConfig = useMemo(() => getEditorConfig(blogId), [blogId]);
+
   useEffect(() => {
     if (!editorInstance.current) {
       editorInstance.current = new EditorJS({
-        ...config,
+        ...editorConfig,
         data: data,
-        onChange: async (api, event: any) => {
-          if (onChange) {
-            const savedData = await api.saver.save();
+        onChange: (api) => {
+          // Debounce the save operation to prevent UI jank during typing
+          if (debounceTimer.current) clearTimeout(debounceTimer.current);
 
-            onChange(savedData);
-          }
+          debounceTimer.current = setTimeout(async () => {
+            if (onChange) {
+              const savedData = await api.saver.save();
+
+              // Detect removed file blocks and delete their files from storage.
+              const currentUrls = extractFileUrls(savedData.blocks);
+              Array.from(prevFileUrls.current).forEach((url) => {
+                if (!currentUrls.has(url)) {
+                  deleteOrphanedFile(url);
+                }
+              });
+              prevFileUrls.current = currentUrls;
+
+              onChange(savedData);
+            }
+          }, 500); // 500ms debounce
         },
       });
     }
 
     return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
       if (editorInstance.current && editorInstance.current.destroy) {
         editorInstance.current.destroy();
         editorInstance.current = null;
       }
     };
-  }, []);
+  }, [blogId, editorConfig, onChange]);
 
   return (
     <div className='w-full px-4 space-y-6' id='editorjs_editor-container'></div>

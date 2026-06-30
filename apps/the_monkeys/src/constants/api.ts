@@ -1,5 +1,14 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL;
-export const API_URL_V2 = process.env.NEXT_PUBLIC_API_URL_V2;
-export const WSS_URL = process.env.NEXT_PUBLIC_WSS_URL;
-export const WSS_URL_V2 = process.env.NEXT_PUBLIC_WSS_URL_V2;
-export const LIVE_URL = process.env.NEXT_PUBLIC_LIVE_URL;
+import { env } from 'next-runtime-env';
+
+export const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || env('NEXT_PUBLIC_API_URL');
+export const API_URL_V2 =
+  process.env.NEXT_PUBLIC_API_URL_V2 || env('NEXT_PUBLIC_API_URL_V2');
+export const WSS_URL =
+  process.env.NEXT_PUBLIC_WSS_URL || env('NEXT_PUBLIC_WSS_URL');
+export const WSS_URL_V2 =
+  process.env.NEXT_PUBLIC_WSS_URL_V2 || env('NEXT_PUBLIC_WSS_URL_V2');
+export const LIVE_URL =
+  process.env.NEXT_PUBLIC_LIVE_URL || env('NEXT_PUBLIC_LIVE_URL');
+export const FRN_URL =
+  process.env.NEXT_PUBLIC_FRN_URL || env('NEXT_PUBLIC_FRN_URL');
