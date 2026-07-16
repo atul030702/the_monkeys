@@ -15,8 +15,10 @@ import {
 import { UserInfoCardShowcase } from '@/components/user/userInfo';
 import { LIVE_URL } from '@/constants/api';
 import { BLOG_ROUTE, TOPIC_ROUTE } from '@/constants/routeConstants';
+import { getRelativeTime } from '@/lib/utils';
 import { BlogCardData } from '@/services/blog/blogTypes';
 import { isNonValidBannerImage } from '@/utils/imageUtils';
+import { topicToSlug } from '@/utils/topicUtils';
 
 interface CardProps {
   blog: BlogCardData;
@@ -56,7 +58,7 @@ const ArticleTag = ({
   }
   return (
     <Link
-      href={`${TOPIC_ROUTE}/${tag}`}
+      href={`${TOPIC_ROUTE}/${topicToSlug(tag)}`}
       target={openInNewTab ? '_blank' : undefined}
       className={className}
     >
@@ -215,7 +217,10 @@ const ListCard = ({ blog, showBookmark = false }: CardProps) => {
 
         <div className='w-full flex flex-col justify-between gap-[10px]'>
           <div>
-            <UserInfoCardShowcase authorID={authorId} date={date} />
+            <UserInfoCardShowcase
+              authorID={authorId}
+              date={date ? getRelativeTime(date) : undefined}
+            />
             <Link href={blogURL} className='w-full'>
               <BlogTitle
                 className='pt-2 font-semibold text-[1.12rem] leading-[1.4] hover:underline underline-offset-2 line-clamp-2'

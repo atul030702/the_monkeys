@@ -11,14 +11,16 @@ import {
 import { UserInfoCardShowcase } from '@/components/user/userInfo';
 import { LIVE_URL } from '@/constants/api';
 import { BLOG_ROUTE, TOPIC_ROUTE } from '@/constants/routeConstants';
+import { getRelativeTime } from '@/lib/utils';
 import { MetaBlog } from '@/services/blog/blogTypes';
 import { isNonValidBannerImage } from '@/utils/imageUtils';
 import { purifyHTMLString } from '@/utils/purifyHTML';
+import { topicToSlug } from '@/utils/topicUtils';
 
 export const TrendingBlogCardLarge = ({ blog }: { blog: MetaBlog }) => {
   const authorId = blog?.owner_account_id;
   const blogId = blog?.blog_id;
-  const date = blog?.published_time;
+  const date = blog?.published_time ? getRelativeTime(blog.published_time) : '';
 
   const titleContent = purifyHTMLString(blog?.title);
   const descriptionContent = blog?.first_paragraph;
@@ -68,7 +70,7 @@ export const TrendingBlogCardLarge = ({ blog }: { blog: MetaBlog }) => {
             <div className='flex items-center gap-2'>
               {blog?.tags.length ? (
                 <Link
-                  href={`${TOPIC_ROUTE}/${blog?.tags[0]}`}
+                  href={`${TOPIC_ROUTE}/${topicToSlug(blog?.tags[0])}`}
                   target='_blank'
                   className='px-3 py-1 bg-brand-orange/10 rounded-full font-inter font-bold text-xs text-brand-orange uppercase tracking-wider hover:bg-brand-orange/20 transition-colors'
                 >
@@ -94,7 +96,7 @@ export const TrendingBlogCardLarge = ({ blog }: { blog: MetaBlog }) => {
 export const TrendingBlogCardSmall = ({ blog }: { blog: MetaBlog }) => {
   const authorId = blog?.owner_account_id;
   const blogId = blog?.blog_id;
-  const date = blog?.published_time;
+  const date = blog?.published_time ? getRelativeTime(blog.published_time) : '';
 
   const titleContent = purifyHTMLString(blog?.title);
   const descriptionContent = purifyHTMLString(blog?.first_paragraph);
@@ -146,7 +148,7 @@ export const TrendingBlogCardSmall = ({ blog }: { blog: MetaBlog }) => {
             <div className='flex items-center gap-2'>
               {blog?.tags.length ? (
                 <Link
-                  href={`${TOPIC_ROUTE}/${blog?.tags[0]}`}
+                  href={`${TOPIC_ROUTE}/${topicToSlug(blog?.tags[0])}`}
                   target='_blank'
                   className='px-3 py-1 bg-brand-orange/10 rounded-full font-inter font-bold text-xs text-brand-orange uppercase tracking-wider hover:bg-brand-orange/20 transition-colors'
                 >
